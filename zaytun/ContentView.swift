@@ -1,61 +1,39 @@
-//
-//  ContentView.swift
-//  zaytun
-//
-//  Created by Hassane Meite on 8/12/26.
-//
-
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @State private var didBootstrap = false
+    @State private var integrityMessage: String?
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
+        NavigationStack {
+            MaterialsListView()
         }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+        .task {
+            guard !didBootstrap else { return }
+            didBootstrap = true
+            do {
+                _ = try SelfPersonBootstrap.ensureSelfPerson(in: modelContext)
+            } catch {
+                integrityMessage = error.localizedDescription
             }
+        }
+        .alert(
+            "Data Integrity Problem",
+            isPresented: Binding(
+                get: { integrityMessage != nil },
+                set: { if !$0 { integrityMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(integrityMessage ?? "")
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(try! ZaytunPersistence.makeContainer(isStoredInMemoryOnly: true))
 }
