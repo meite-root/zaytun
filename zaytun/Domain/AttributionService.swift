@@ -35,6 +35,18 @@ enum AttributionService {
         return attribution
     }
 
+    @discardableResult
+    static func create(
+        material: Material,
+        newPersonNamed name: String,
+        role: AttributionRole,
+        in context: ModelContext
+    ) throws -> MaterialAttribution {
+        _ = try PersonService.validatedNonselfName(name)
+        let person = try PersonService.createNonself(name: name, in: context)
+        return try create(material: material, person: person, role: role, in: context)
+    }
+
     static func updateRole(
         of attribution: MaterialAttribution,
         to role: AttributionRole
@@ -48,6 +60,13 @@ enum AttributionService {
             throw AttributionValidationError.duplicate
         }
         attribution.role = role
+    }
+
+    static func remove(
+        _ attribution: MaterialAttribution,
+        from context: ModelContext
+    ) {
+        context.delete(attribution)
     }
 
     private static func containsDuplicate(

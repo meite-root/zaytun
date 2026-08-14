@@ -8,7 +8,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            MaterialsListView()
+            InboxView()
         }
         .task {
             guard !didBootstrap else { return }

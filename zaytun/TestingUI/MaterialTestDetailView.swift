@@ -81,7 +81,7 @@ struct MaterialTestDetailView: View {
             Button("Remove Attribution", role: .destructive) {
                 guard let attributionToDelete else { return }
                 do {
-                    modelContext.delete(attributionToDelete)
+                    AttributionService.remove(attributionToDelete, from: modelContext)
                     try modelContext.save()
                     self.attributionToDelete = nil
                 } catch {

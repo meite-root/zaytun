@@ -27,18 +27,26 @@ enum ZaytunMigrationPlan: SchemaMigrationPlan {
 }
 
 enum ZaytunPersistence {
-    static func makeContainer(isStoredInMemoryOnly: Bool = false) throws -> ModelContainer {
-        if !isStoredInMemoryOnly {
+    static func makeContainer(
+        isStoredInMemoryOnly: Bool = false,
+        storeURL: URL? = nil
+    ) throws -> ModelContainer {
+        if !isStoredInMemoryOnly, storeURL == nil {
             try FileManager.default.createDirectory(
                 at: URL.applicationSupportDirectory,
                 withIntermediateDirectories: true
             )
         }
         let schema = Schema(versionedSchema: ZaytunSchemaV1.self)
-        let configuration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: isStoredInMemoryOnly
-        )
+        let configuration: ModelConfiguration
+        if let storeURL {
+            configuration = ModelConfiguration(schema: schema, url: storeURL)
+        } else {
+            configuration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: isStoredInMemoryOnly
+            )
+        }
         return try ModelContainer(
             for: schema,
             migrationPlan: ZaytunMigrationPlan.self,

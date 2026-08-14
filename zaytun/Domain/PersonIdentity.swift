@@ -49,12 +49,17 @@ enum SelfPersonBootstrap {
 enum PersonService {
     @discardableResult
     static func createNonself(name: String, in context: ModelContext) throws -> Person {
-        guard let trimmedName = name.trimmedNonempty else {
-            throw PersonValidationError.emptyName
-        }
+        let trimmedName = try validatedNonselfName(name)
         let person = Person(name: trimmedName, isSelf: false)
         context.insert(person)
         return person
+    }
+
+    static func validatedNonselfName(_ name: String) throws -> String {
+        guard let trimmedName = name.trimmedNonempty else {
+            throw PersonValidationError.emptyName
+        }
+        return trimmedName
     }
 
     static func rename(_ person: Person, to name: String, now: Date = .now) throws {
