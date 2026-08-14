@@ -34,7 +34,13 @@ struct InboxView: View {
         }
         .navigationTitle("Inbox")
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItemGroup(placement: .topBarLeading) {
+                NavigationLink {
+                    SearchView()
+                } label: {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+
                 NavigationLink {
                     OrganizeView()
                 } label: {

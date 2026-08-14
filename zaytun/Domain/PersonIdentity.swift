@@ -23,6 +23,25 @@ enum PersonValidationError: LocalizedError, Equatable {
     }
 }
 
+enum PersonDeletionError: LocalizedError, Equatable {
+    case selfPersonIsProtected
+
+    var errorDescription: String? {
+        String(localized: "Me cannot be deleted from Zaytun.")
+    }
+}
+
+struct PersonMaterialLink: Identifiable {
+    let material: Material
+    let roles: [AttributionRole]
+
+    var id: UUID { material.id }
+
+    var roleSummary: String {
+        AttributionService.roleSummary(roles)
+    }
+}
+
 @MainActor
 enum SelfPersonBootstrap {
     static func ensureSelfPerson(in context: ModelContext) throws -> Person {
@@ -72,5 +91,35 @@ enum PersonService {
             person.name = trimmedName
         }
         person.updatedAt = now
+    }
+
+    static func materialLinks(for person: Person) -> [PersonMaterialLink] {
+        let grouped = Dictionary(grouping: person.attributions, by: { $0.material.id })
+        return grouped.values
+            .compactMap { attributions in
+                guard let material = attributions.first?.material else { return nil }
+                return PersonMaterialLink(
+                    material: material,
+                    roles: AttributionService.orderedRoles(attributions.map(\.role))
+                )
+            }
+            .sorted { left, right in
+                let leftDate = max(left.material.capturedAt, left.material.updatedAt)
+                let rightDate = max(right.material.capturedAt, right.material.updatedAt)
+                if leftDate != rightDate {
+                    return leftDate > rightDate
+                }
+                if left.material.capturedAt != right.material.capturedAt {
+                    return left.material.capturedAt > right.material.capturedAt
+                }
+                return left.id.uuidString < right.id.uuidString
+            }
+    }
+
+    static func delete(_ person: Person, from context: ModelContext) throws {
+        guard !person.isSelf else {
+            throw PersonDeletionError.selfPersonIsProtected
+        }
+        context.delete(person)
     }
 }

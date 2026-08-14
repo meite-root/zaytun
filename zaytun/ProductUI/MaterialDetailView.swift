@@ -50,11 +50,15 @@ struct MaterialDetailView: View {
 
             if !material.attributions.isEmpty {
                 Section("Provenance") {
-                    ForEach(material.attributions.sorted { $0.createdAt < $1.createdAt }) { attribution in
-                        LabeledContent(
-                            attribution.role.displayName,
-                            value: attribution.person.displayName
-                        )
+                    ForEach(AttributionService.ordered(material.attributions)) { attribution in
+                        NavigationLink {
+                            PersonDetailView(person: attribution.person)
+                        } label: {
+                            LabeledContent(
+                                attribution.role.displayName,
+                                value: attribution.person.displayName
+                            )
+                        }
                     }
                 }
             }
@@ -191,7 +195,7 @@ private struct NoteEditorView: View {
                     Text("No Person attribution")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(material.attributions.sorted { $0.createdAt < $1.createdAt }) { attribution in
+                    ForEach(AttributionService.ordered(material.attributions)) { attribution in
                         HStack {
                             Text(attribution.person.displayName)
                             Spacer()

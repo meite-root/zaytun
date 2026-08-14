@@ -25,6 +25,19 @@ struct OrganizeView: View {
                 }
             }
 
+            Section("Find & Context") {
+                NavigationLink {
+                    SearchView()
+                } label: {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+                NavigationLink {
+                    PeopleView()
+                } label: {
+                    Label("People", systemImage: "person.2")
+                }
+            }
+
             #if DEBUG
             Section("Development") {
                 NavigationLink {
