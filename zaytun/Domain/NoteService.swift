@@ -79,23 +79,14 @@ enum NoteService {
             || material.source != normalizedSource
             || oldTopicIDs != newTopicIDs
 
-        guard changed else { return }
-
-        material.title = normalizedTitle
-        material.text = normalizedText
-        material.source = normalizedSource
-        material.topics = normalizedTopics
-        material.updatedAt = now
-    }
-
-    static func setStatus(
-        _ status: MaterialStatus,
-        for material: Material,
-        now: Date = .now
-    ) {
-        guard material.status != status else { return }
-        material.status = status
-        material.updatedAt = now
+        if changed {
+            material.title = normalizedTitle
+            material.text = normalizedText
+            material.source = normalizedSource
+            material.topics = normalizedTopics
+            material.updatedAt = now
+        }
+        MaterialOrganizationService.synchronizeStatus(for: material)
     }
 
     static func inboxDescriptor() -> FetchDescriptor<Material> {
@@ -117,16 +108,17 @@ enum NoteService {
             throw NoteValidationError.emptyText
         }
 
+        let normalizedTopics = unique(topics)
         let material = Material(
             type: .note,
-            status: .inbox,
+            status: MaterialOrganizationService.expectedStatus(forTopics: normalizedTopics),
             title: title?.trimmedNonempty,
             text: normalizedText,
             createdAt: now,
             updatedAt: now,
             capturedAt: now,
             source: source?.trimmedNonempty,
-            topics: unique(topics)
+            topics: normalizedTopics
         )
         context.insert(material)
         return material

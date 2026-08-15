@@ -8,7 +8,7 @@ struct InboxView: View {
         order: .reverse
     ) private var materials: [Material]
 
-    @State private var captureMode: CaptureMode?
+    @State private var captureMode: MaterialCaptureMode?
 
     var body: some View {
         Group {
@@ -34,34 +34,15 @@ struct InboxView: View {
         }
         .navigationTitle("Inbox")
         .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 NavigationLink {
                     SearchView()
                 } label: {
                     Label("Search", systemImage: "magnifyingglass")
                 }
-
-                NavigationLink {
-                    OrganizeView()
-                } label: {
-                    Label("Organize", systemImage: "square.grid.2x2")
-                }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        captureMode = .quick
-                    } label: {
-                        Label("Quick Note", systemImage: "bolt")
-                    }
-                    Button {
-                        captureMode = .full
-                    } label: {
-                        Label("Full Note", systemImage: "list.bullet.rectangle")
-                    }
-                } label: {
-                    Label("Capture", systemImage: "plus")
-                }
+                MaterialCaptureMenu(captureMode: $captureMode)
 
                 Button {
                     captureMode = .quick
@@ -72,22 +53,51 @@ struct InboxView: View {
         }
         .sheet(item: $captureMode) { mode in
             NavigationStack {
-                switch mode {
-                case .quick:
-                    QuickNoteCaptureView()
-                case .full:
-                    FullNoteCaptureView()
-                }
+                MaterialCaptureSheetContent(mode: mode)
             }
         }
     }
 }
 
-private enum CaptureMode: String, Identifiable {
+enum MaterialCaptureMode: String, Identifiable {
     case quick
     case full
 
     var id: String { rawValue }
+}
+
+struct MaterialCaptureMenu: View {
+    @Binding var captureMode: MaterialCaptureMode?
+
+    var body: some View {
+        Menu {
+            Button {
+                captureMode = .quick
+            } label: {
+                Label("Quick Note", systemImage: "bolt")
+            }
+            Button {
+                captureMode = .full
+            } label: {
+                Label("Full Note", systemImage: "list.bullet.rectangle")
+            }
+        } label: {
+            Label("Capture", systemImage: "plus")
+        }
+    }
+}
+
+struct MaterialCaptureSheetContent: View {
+    let mode: MaterialCaptureMode
+
+    var body: some View {
+        switch mode {
+        case .quick:
+            QuickNoteCaptureView()
+        case .full:
+            FullNoteCaptureView()
+        }
+    }
 }
 
 struct ProductMaterialRow: View {

@@ -3,12 +3,35 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @State private var selectedTab: AppTab = .reflections
     @State private var didBootstrap = false
     @State private var integrityMessage: String?
 
     var body: some View {
-        NavigationStack {
-            InboxView()
+        TabView(selection: $selectedTab) {
+            NavigationStack {
+                ReflectionsHomeView()
+            }
+            .tabItem {
+                Label("Reflections", systemImage: "text.bubble")
+            }
+            .tag(AppTab.reflections)
+
+            NavigationStack {
+                InboxView()
+            }
+            .tabItem {
+                Label("Inbox", systemImage: "tray")
+            }
+            .tag(AppTab.inbox)
+
+            NavigationStack {
+                OrganizeView()
+            }
+            .tabItem {
+                Label("Organize", systemImage: "square.grid.2x2")
+            }
+            .tag(AppTab.organize)
         }
         .task {
             guard !didBootstrap else { return }
@@ -16,7 +39,18 @@ struct ContentView: View {
             do {
                 _ = try SelfPersonBootstrap.ensureSelfPerson(in: modelContext)
             } catch {
+                modelContext.rollback()
                 integrityMessage = error.localizedDescription
+            }
+            do {
+                _ = try MaterialOrganizationService.reconcilePersistedStatuses(
+                    in: modelContext
+                )
+            } catch {
+                modelContext.rollback()
+                if integrityMessage == nil {
+                    integrityMessage = error.localizedDescription
+                }
             }
         }
         .alert(
@@ -31,6 +65,12 @@ struct ContentView: View {
             Text(integrityMessage ?? "")
         }
     }
+}
+
+private enum AppTab: Hashable {
+    case reflections
+    case inbox
+    case organize
 }
 
 #Preview {

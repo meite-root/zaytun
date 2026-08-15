@@ -65,7 +65,7 @@ struct OrganizedMaterialsView: View {
                 ContentUnavailableView(
                     "No Organized Materials",
                     systemImage: "books.vertical",
-                    description: Text("Materials you process from Inbox will remain here.")
+                    description: Text("Materials assigned to Topics will appear here.")
                 )
             } else {
                 List(materials) { material in

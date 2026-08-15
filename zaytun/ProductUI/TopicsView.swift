@@ -26,7 +26,8 @@ struct TopicsView: View {
                             Text(topic.title)
                                 .font(.headline)
                             HStack(spacing: 8) {
-                                Text("\(topic.materials.count) material(s)")
+                                let materialCount = TopicService.materials(for: topic).count
+                                Text(materialCount == 1 ? "1 Material" : "\(materialCount) Materials")
                                 if !topic.disciplines.isEmpty {
                                     Text("·")
                                     Text(topic.disciplines.map(\.name).sorted().joined(separator: ", "))
@@ -67,7 +68,7 @@ struct TopicsView: View {
             Button("Delete Topic", role: .destructive, action: deleteTopic)
             Button("Cancel", role: .cancel) { topicToDelete = nil }
         } message: {
-            Text("Materials and Disciplines will remain.")
+            Text("Materials, Reflections, and Disciplines will remain.")
         }
         .errorAlert(message: $errorMessage)
     }
@@ -75,7 +76,7 @@ struct TopicsView: View {
     private func deleteTopic() {
         guard let topicToDelete else { return }
         do {
-            modelContext.delete(topicToDelete)
+            TopicService.delete(topicToDelete, from: modelContext)
             try modelContext.save()
             self.topicToDelete = nil
         } catch {
@@ -129,8 +130,17 @@ struct TopicEditorView: View {
 
     @State private var title: String
     @State private var selectedDisciplineIDs: Set<UUID>
+    @State private var isAddingReflection = false
     @State private var isDeleting = false
     @State private var errorMessage: String?
+
+    private var materials: [Material] {
+        TopicService.materials(for: topic)
+    }
+
+    private var reflections: [Reflection] {
+        ReflectionService.reflections(for: topic)
+    }
 
     init(topic: Topic) {
         self.topic = topic
@@ -169,7 +179,39 @@ struct TopicEditorView: View {
             }
 
             Section("Materials") {
-                LabeledContent("Associated", value: "\(topic.materials.count)")
+                if materials.isEmpty {
+                    Text("No Materials yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(materials) { material in
+                        NavigationLink {
+                            MaterialDetailView(material: material)
+                        } label: {
+                            TopicMaterialRow(material: material)
+                        }
+                    }
+                }
+            }
+
+            Section("Reflections") {
+                if reflections.isEmpty {
+                    Text("No Reflections yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(reflections) { reflection in
+                        NavigationLink {
+                            ReflectionDetailView(reflection: reflection)
+                        } label: {
+                            ReflectionRow(reflection: reflection)
+                        }
+                    }
+                }
+
+                Button {
+                    isAddingReflection = true
+                } label: {
+                    Label("Add Reflection", systemImage: "plus")
+                }
             }
 
             Section {
@@ -183,11 +225,16 @@ struct TopicEditorView: View {
                 Button("Save", action: save)
             }
         }
+        .sheet(isPresented: $isAddingReflection) {
+            NavigationStack {
+                ReflectionEditorView(topic: topic)
+            }
+        }
         .confirmationDialog("Delete this Topic?", isPresented: $isDeleting) {
             Button("Delete Topic", role: .destructive, action: deleteTopic)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Materials and Disciplines will remain.")
+            Text("Materials, Reflections, and Disciplines will remain.")
         }
         .errorAlert(message: $errorMessage)
     }
@@ -217,12 +264,43 @@ struct TopicEditorView: View {
 
     private func deleteTopic() {
         do {
-            modelContext.delete(topic)
+            TopicService.delete(topic, from: modelContext)
             try modelContext.save()
             dismiss()
         } catch {
             modelContext.rollback()
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct TopicMaterialRow: View {
+    let material: Material
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(material.displayTitle)
+                .font(.headline)
+                .lineLimit(2)
+
+            if material.title?.trimmedNonempty != nil,
+               let text = material.text?.trimmedNonempty {
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            if let source = material.source?.trimmedNonempty {
+                Text(source)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let materialType = material.type {
+                Text(materialType.displayName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 3)
     }
 }

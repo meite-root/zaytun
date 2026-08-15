@@ -7,8 +7,13 @@ struct MaterialDetailView: View {
     let material: Material
 
     @State private var isEditing = false
+    @State private var isAddingReflection = false
     @State private var isDeleting = false
     @State private var errorMessage: String?
+
+    private var reflections: [Reflection] {
+        ReflectionService.reflections(for: material)
+    }
 
     var body: some View {
         List {
@@ -63,6 +68,27 @@ struct MaterialDetailView: View {
                 }
             }
 
+            Section("Reflections") {
+                if reflections.isEmpty {
+                    Text("No Reflections yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(reflections) { reflection in
+                        NavigationLink {
+                            ReflectionDetailView(reflection: reflection)
+                        } label: {
+                            ReflectionRow(reflection: reflection)
+                        }
+                    }
+                }
+
+                Button {
+                    isAddingReflection = true
+                } label: {
+                    Label("Add Reflection", systemImage: "plus")
+                }
+            }
+
             Section("Details") {
                 LabeledContent("Status", value: material.status?.displayName ?? "Unsupported")
                 LabeledContent("Captured") {
@@ -71,15 +97,6 @@ struct MaterialDetailView: View {
             }
 
             Section {
-                Button {
-                    changeStatus()
-                } label: {
-                    Label(
-                        material.status == .inbox ? "Mark Organized" : "Return to Inbox",
-                        systemImage: material.status == .inbox ? "checkmark.circle" : "tray.and.arrow.down"
-                    )
-                }
-
                 Button("Delete Material", systemImage: "trash", role: .destructive) {
                     isDeleting = true
                 }
@@ -99,24 +116,18 @@ struct MaterialDetailView: View {
                 NoteEditorView(material: material)
             }
         }
+        .sheet(isPresented: $isAddingReflection) {
+            NavigationStack {
+                ReflectionEditorView(material: material)
+            }
+        }
         .confirmationDialog("Delete this Material?", isPresented: $isDeleting) {
             Button("Delete Material", role: .destructive, action: deleteMaterial)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Its provenance statements will be removed. People and Topics will remain.")
+            Text("Its provenance statements will be removed. People, Topics, and Reflections will remain.")
         }
         .errorAlert(message: $errorMessage)
-    }
-
-    private func changeStatus() {
-        let newStatus: MaterialStatus = material.status == .inbox ? .organized : .inbox
-        do {
-            NoteService.setStatus(newStatus, for: material)
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            errorMessage = error.localizedDescription
-        }
     }
 
     private func deleteMaterial() {

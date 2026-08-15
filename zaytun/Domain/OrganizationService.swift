@@ -16,6 +16,43 @@ enum OrganizationValidationError: LocalizedError, Equatable {
 }
 
 @MainActor
+enum MaterialOrganizationService {
+    static func expectedStatus(for material: Material) -> MaterialStatus {
+        expectedStatus(forTopics: material.topics)
+    }
+
+    static func expectedStatus(forTopics topics: [Topic]) -> MaterialStatus {
+        topics.isEmpty ? .inbox : .organized
+    }
+
+    static func isStatusConsistent(for material: Material) -> Bool {
+        material.statusRawValue == expectedStatus(for: material).rawValue
+    }
+
+    @discardableResult
+    static func synchronizeStatus(for material: Material) -> Bool {
+        let expectedRawValue = expectedStatus(for: material).rawValue
+        guard material.statusRawValue != expectedRawValue else { return false }
+        material.statusRawValue = expectedRawValue
+        return true
+    }
+
+    @discardableResult
+    static func reconcilePersistedStatuses(in context: ModelContext) throws -> Int {
+        let materials = try context.fetch(FetchDescriptor<Material>())
+        let changedCount = materials.reduce(into: 0) { count, material in
+            if synchronizeStatus(for: material) {
+                count += 1
+            }
+        }
+        if changedCount > 0 {
+            try context.save()
+        }
+        return changedCount
+    }
+}
+
+@MainActor
 enum TopicService {
     @discardableResult
     static func create(
@@ -73,9 +110,11 @@ enum TopicService {
         to material: Material,
         now: Date = .now
     ) {
-        guard !material.topics.contains(where: { $0.id == topic.id }) else { return }
-        material.topics.append(topic)
-        material.updatedAt = now
+        if !material.topics.contains(where: { $0.id == topic.id }) {
+            material.topics.append(topic)
+            material.updatedAt = now
+        }
+        MaterialOrganizationService.synchronizeStatus(for: material)
     }
 
     static func remove(
@@ -83,9 +122,42 @@ enum TopicService {
         from material: Material,
         now: Date = .now
     ) {
-        guard material.topics.contains(where: { $0.id == topic.id }) else { return }
-        material.topics.removeAll { $0.id == topic.id }
-        material.updatedAt = now
+        if material.topics.contains(where: { $0.id == topic.id }) {
+            material.topics.removeAll { $0.id == topic.id }
+            material.updatedAt = now
+        }
+        MaterialOrganizationService.synchronizeStatus(for: material)
+    }
+
+    static func delete(
+        _ topic: Topic,
+        now: Date = .now,
+        from context: ModelContext
+    ) {
+        let affectedMaterials = materials(for: topic)
+        for material in affectedMaterials {
+            remove(topic, from: material, now: now)
+        }
+        context.delete(topic)
+    }
+
+    static func materials(for topic: Topic) -> [Material] {
+        var materialsByID: [UUID: Material] = [:]
+        for material in topic.materials {
+            materialsByID[material.id] = material
+        }
+
+        return materialsByID.values.sorted { left, right in
+            let leftDate = max(left.capturedAt, left.updatedAt)
+            let rightDate = max(right.capturedAt, right.updatedAt)
+            if leftDate != rightDate {
+                return leftDate > rightDate
+            }
+            if left.capturedAt != right.capturedAt {
+                return left.capturedAt > right.capturedAt
+            }
+            return left.id.uuidString < right.id.uuidString
+        }
     }
 
     private static func unique(_ disciplines: [Discipline]) -> [Discipline] {
