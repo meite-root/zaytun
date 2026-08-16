@@ -18,6 +18,14 @@ struct ContentView: View {
             .tag(AppTab.reflections)
 
             NavigationStack {
+                TodayView()
+            }
+            .tabItem {
+                Label("Today", systemImage: "sun.max")
+            }
+            .tag(AppTab.today)
+
+            NavigationStack {
                 InboxView()
             }
             .tabItem {
@@ -52,6 +60,16 @@ struct ContentView: View {
                     integrityMessage = error.localizedDescription
                 }
             }
+            do {
+                _ = try ResurfacingService.reconcileUnscheduledMaterials(
+                    in: modelContext
+                )
+            } catch {
+                modelContext.rollback()
+                if integrityMessage == nil {
+                    integrityMessage = error.localizedDescription
+                }
+            }
         }
         .alert(
             "Data Integrity Problem",
@@ -69,6 +87,7 @@ struct ContentView: View {
 
 private enum AppTab: Hashable {
     case reflections
+    case today
     case inbox
     case organize
 }

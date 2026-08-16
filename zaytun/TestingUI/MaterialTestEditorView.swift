@@ -118,11 +118,16 @@ struct MaterialTestEditorView: View {
                 }
                 return (person: person, role: draft.role)
             }
+            let now = Date.now
             let material = Material(
                 type: type,
                 title: title.trimmedNonempty,
                 text: type == .note ? text.trimmedNonempty : nil,
-                source: source.trimmedNonempty
+                createdAt: now,
+                updatedAt: now,
+                capturedAt: now,
+                source: source.trimmedNonempty,
+                nextReviewAt: now
             )
             modelContext.insert(material)
             for value in resolvedDrafts {

@@ -94,6 +94,19 @@ struct MaterialDetailView: View {
                 LabeledContent("Captured") {
                     Text(material.capturedAt, format: .dateTime.day().month().year().hour().minute())
                 }
+                if let nextReviewAt = material.nextReviewAt {
+                    LabeledContent("Scheduled") {
+                        Text(nextReviewAt, format: .dateTime.day().month().year())
+                    }
+                }
+                if let lastReviewedAt = material.lastReviewedAt {
+                    LabeledContent("Last Reviewed") {
+                        Text(lastReviewedAt, format: .dateTime.day().month().year())
+                    }
+                }
+                if material.reviewCount > 0 {
+                    LabeledContent("Reviews", value: "\(material.reviewCount)")
+                }
             }
 
             Section {
@@ -105,10 +118,11 @@ struct MaterialDetailView: View {
         .navigationTitle(material.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if material.type == .note {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if material.type == .note {
                     Button("Edit") { isEditing = true }
                 }
+                MaterialResurfacingMenu(material: material)
             }
         }
         .sheet(isPresented: $isEditing) {

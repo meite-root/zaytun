@@ -118,6 +118,7 @@ enum NoteService {
             updatedAt: now,
             capturedAt: now,
             source: source?.trimmedNonempty,
+            nextReviewAt: now,
             topics: normalizedTopics
         )
         context.insert(material)
