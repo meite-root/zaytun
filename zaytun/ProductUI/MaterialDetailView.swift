@@ -23,16 +23,15 @@ struct MaterialDetailView: View {
                         .font(.title2.weight(.semibold))
                         .listRowSeparator(.hidden)
                 }
-                if let text = material.text?.trimmedNonempty {
+                if material.type == .note,
+                   let text = material.text?.trimmedNonempty {
                     Text(text)
                         .font(.body)
                         .textSelection(.enabled)
                         .listRowSeparator(.hidden)
                 } else if material.type != .note {
-                    ContentUnavailableView(
-                        material.type?.displayName ?? "Material",
-                        systemImage: "doc"
-                    )
+                    MediaContentView(material: material, videoHeight: 320)
+                        .listRowSeparator(.hidden)
                 }
             }
 
@@ -119,7 +118,7 @@ struct MaterialDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if material.type == .note {
+                if material.type != nil {
                     Button("Edit") { isEditing = true }
                 }
                 MaterialResurfacingMenu(material: material)
@@ -127,7 +126,7 @@ struct MaterialDetailView: View {
         }
         .sheet(isPresented: $isEditing) {
             NavigationStack {
-                NoteEditorView(material: material)
+                MaterialEditorView(material: material)
             }
         }
         .sheet(isPresented: $isAddingReflection) {
@@ -146,8 +145,16 @@ struct MaterialDetailView: View {
 
     private func deleteMaterial() {
         do {
-            modelContext.delete(material)
-            try modelContext.save()
+            if material.type != .note, material.mediaFilename != nil {
+                try MediaImportService.delete(
+                    material,
+                    storage: try MediaStorageService.applicationSupport(),
+                    from: modelContext
+                )
+            } else {
+                modelContext.delete(material)
+                try modelContext.save()
+            }
             dismiss()
         } catch {
             modelContext.rollback()
@@ -156,18 +163,18 @@ struct MaterialDetailView: View {
     }
 }
 
-private struct NoteEditDraft {
+private struct MaterialEditDraft {
     var title: String
     var text: String
     var source: String
 }
 
-private struct NoteEditorView: View {
+private struct MaterialEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let material: Material
 
-    @State private var draft: NoteEditDraft
+    @State private var draft: MaterialEditDraft
     @State private var isAddingTopic = false
     @State private var isAddingAttribution = false
     @State private var attributionToRemove: MaterialAttribution?
@@ -175,7 +182,7 @@ private struct NoteEditorView: View {
 
     init(material: Material) {
         self.material = material
-        _draft = State(initialValue: NoteEditDraft(
+        _draft = State(initialValue: MaterialEditDraft(
             title: material.title ?? "",
             text: material.text ?? "",
             source: material.source ?? ""
@@ -184,10 +191,12 @@ private struct NoteEditorView: View {
 
     var body: some View {
         Form {
-            Section("Note") {
+            Section(material.type == .note ? "Note" : "Material") {
                 TextField("Optional title", text: $draft.title)
-                TextEditor(text: $draft.text)
-                    .frame(minHeight: 180)
+                if material.type == .note {
+                    TextEditor(text: $draft.text)
+                        .frame(minHeight: 180)
+                }
             }
             Section("Source (Optional)") {
                 TextField("Where did you encounter this?", text: $draft.source)
@@ -247,7 +256,7 @@ private struct NoteEditorView: View {
                 }
             }
         }
-        .navigationTitle("Edit Note")
+        .navigationTitle(material.type == .note ? "Edit Note" : "Edit Media")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -289,13 +298,22 @@ private struct NoteEditorView: View {
 
     private func save() {
         do {
-            try NoteService.update(
-                material,
-                title: draft.title,
-                text: draft.text,
-                source: draft.source,
-                topics: material.topics
-            )
+            if material.type == .note {
+                try NoteService.update(
+                    material,
+                    title: draft.title,
+                    text: draft.text,
+                    source: draft.source,
+                    topics: material.topics
+                )
+            } else {
+                try MediaImportService.updateMetadata(
+                    material,
+                    title: draft.title,
+                    source: draft.source,
+                    topics: material.topics
+                )
+            }
             try modelContext.save()
             dismiss()
         } catch {

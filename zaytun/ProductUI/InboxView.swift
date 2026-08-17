@@ -62,6 +62,7 @@ struct InboxView: View {
 enum MaterialCaptureMode: String, Identifiable {
     case quick
     case full
+    case media
 
     var id: String { rawValue }
 }
@@ -81,6 +82,11 @@ struct MaterialCaptureMenu: View {
             } label: {
                 Label("Full Note", systemImage: "list.bullet.rectangle")
             }
+            Button {
+                captureMode = .media
+            } label: {
+                Label("Add Media", systemImage: "photo.on.rectangle.angled")
+            }
         } label: {
             Label("Capture", systemImage: "plus")
         }
@@ -96,6 +102,8 @@ struct MaterialCaptureSheetContent: View {
             QuickNoteCaptureView()
         case .full:
             FullNoteCaptureView()
+        case .media:
+            MediaImportView()
         }
     }
 }
@@ -104,36 +112,42 @@ struct ProductMaterialRow: View {
     let material: Material
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(material.displayTitle)
-                .font(.headline)
-                .lineLimit(2)
+        HStack(alignment: .top, spacing: 12) {
+            if material.type != .note {
+                MaterialThumbnailView(material: material)
+            }
 
-            if material.title?.trimmedNonempty != nil,
-               let text = material.text?.trimmedNonempty {
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(material.displayTitle)
+                    .font(.headline)
                     .lineLimit(2)
-            }
 
-            if let source = material.source?.trimmedNonempty {
-                Label(source, systemImage: "arrow.down.to.line")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 8) {
-                if !material.topics.isEmpty {
-                    Text(material.topics.map(\.title).sorted().joined(separator: " · "))
-                        .lineLimit(1)
+                if material.title?.trimmedNonempty != nil,
+                   let text = material.text?.trimmedNonempty {
+                    Text(text)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
-                Spacer(minLength: 4)
-                Text(material.capturedAt, style: .relative)
-                    .fixedSize()
+
+                if let source = material.source?.trimmedNonempty {
+                    Label(source, systemImage: "arrow.down.to.line")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    if !material.topics.isEmpty {
+                        Text(material.topics.map(\.title).sorted().joined(separator: " · "))
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    Text(material.capturedAt, style: .relative)
+                        .fixedSize()
+                }
+                .font(.caption)
+                .foregroundStyle(.tertiary)
             }
-            .font(.caption)
-            .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 5)
     }

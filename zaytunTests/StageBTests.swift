@@ -43,7 +43,7 @@ struct ZaytunStageBTests {
         #expect(saved.updatedAt == now)
         #expect(saved.capturedAt == now)
         #expect(saved.lastReviewedAt == nil)
-        #expect(saved.nextReviewAt == nil)
+        #expect(saved.nextReviewAt == now)
         #expect(saved.reviewCount == 0)
         #expect(!saved.isArchived)
     }
@@ -104,36 +104,48 @@ struct ZaytunStageBTests {
         let topics = try refetch(Topic.self, from: container)
         #expect(materials.count == 3)
         #expect(materials.first { $0.text == "No topic" }?.topics.isEmpty == true)
+        #expect(materials.first { $0.text == "No topic" }?.status == .inbox)
         #expect(materials.first { $0.text == "One topic" }?.title == "Expectations")
         #expect(materials.first { $0.text == "One topic" }?.source == "Conversation")
         #expect(materials.first { $0.text == "One topic" }?.topics.map(\.id) == [education.id])
+        #expect(materials.first { $0.text == "One topic" }?.status == .organized)
         #expect(Set(materials.first { $0.text == "Multiple topics" }?.topics.map(\.id) ?? []) == Set([education.id, development.id]))
+        #expect(materials.first { $0.text == "Multiple topics" }?.status == .organized)
         #expect(topics.first { $0.id == education.id }?.materials.count == 2)
         #expect(topics.first { $0.id == development.id }?.materials.count == 1)
     }
 
-    @Test("Inbox membership and organization are persisted Material status")
+    @Test("Inbox membership follows persisted Topic-based organization status")
     func inboxTransitionPersists() throws {
         let (container, context) = try makeStore()
         let createdAt = Date(timeIntervalSince1970: 1_800_000_100)
         let organizedAt = Date(timeIntervalSince1970: 1_800_000_200)
+        let returnedAt = organizedAt.addingTimeInterval(10)
         let material = try NoteService.quickCapture(text: "No metadata", now: createdAt, in: context)
+        let topic = try TopicService.create(title: "Infrastructure", in: context)
         try context.save()
 
         #expect(try context.fetch(NoteService.inboxDescriptor()).map(\.id) == [material.id])
 
-        NoteService.setStatus(.organized, for: material, now: organizedAt)
+        TopicService.assign(topic, to: material, now: organizedAt)
         try context.save()
 
         #expect(try context.fetch(NoteService.inboxDescriptor()).isEmpty)
         let saved = try #require(refetch(Material.self, from: container).first)
         #expect(saved.status == .organized)
         #expect(saved.updatedAt == organizedAt)
-        #expect(saved.title == nil && saved.source == nil && saved.topics.isEmpty)
+        #expect(saved.title == nil && saved.source == nil)
+        #expect(saved.topics.map(\.id) == [topic.id])
 
-        NoteService.setStatus(.inbox, for: saved, now: organizedAt.addingTimeInterval(10))
+        TopicService.remove(
+            try #require(saved.topics.first { $0.id == topic.id }),
+            from: saved,
+            now: returnedAt
+        )
         try container.mainContext.save()
         #expect(try container.mainContext.fetch(NoteService.inboxDescriptor()).count == 1)
+        #expect(saved.status == .inbox)
+        #expect(saved.updatedAt == returnedAt)
     }
 
     @Test("Editing a Note updates Stage B fields without changing creation or provenance")
@@ -232,12 +244,14 @@ struct ZaytunStageBTests {
         #expect(education.materials.map(\.id) == [secondMaterial.id])
         #expect(try refetch(Material.self, from: container).count == 2)
 
-        context.delete(policy)
+        TopicService.delete(policy, from: context)
         try context.save()
         let materials = try refetch(Material.self, from: container)
         #expect(materials.count == 2)
         #expect(materials.first { $0.id == firstMaterial.id }?.topics.isEmpty == true)
+        #expect(materials.first { $0.id == firstMaterial.id }?.status == .inbox)
         #expect(materials.first { $0.id == secondMaterial.id }?.topics.map(\.id) == [education.id])
+        #expect(materials.first { $0.id == secondMaterial.id }?.status == .organized)
     }
 
     @Test("Discipline validation, rename, and many-to-many Topic assignment persist")
@@ -324,7 +338,6 @@ struct ZaytunStageBTests {
             )
             let person = try PersonService.createNonself(name: "Hamed", in: context)
             _ = try AttributionService.create(material: material, person: person, role: .saidBy, in: context)
-            NoteService.setStatus(.organized, for: material)
             try context.save()
 
             materialID = material.id

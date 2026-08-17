@@ -91,6 +91,9 @@ final class Material {
         if type == .note, let text = text?.trimmedNonempty {
             return String(text.prefix(60))
         }
+        if let type, type != .note {
+            return type.displayName
+        }
         return String(localized: "Untitled Material")
     }
 

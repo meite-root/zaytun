@@ -45,11 +45,18 @@ struct TodayView: View {
                             .font(.title2.weight(.semibold))
                     }
 
-                    if let text = material.text?.trimmedNonempty {
+                    if material.type == .note,
+                       let text = material.text?.trimmedNonempty {
                         Text(text)
                             .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
+                    } else if material.type != .note {
+                        MediaContentView(
+                            material: material,
+                            imageMaximumHeight: 560,
+                            videoHeight: 360
+                        )
                     } else if material.title?.trimmedNonempty == nil {
                         Text(material.displayTitle)
                             .font(.title2.weight(.semibold))

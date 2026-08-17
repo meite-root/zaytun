@@ -128,6 +128,7 @@ struct StageBUXRevisionTests {
         try context.save()
 
         #expect(material.topics.count == 2)
+        #expect(material.status == .organized)
         #expect(material.topics.filter { $0.id == existing.id }.count == 1)
         #expect(material.updatedAt == assignedAt)
         #expect(created.title == "Parenting")
@@ -141,6 +142,7 @@ struct StageBUXRevisionTests {
         #expect(savedMaterials.count == 1)
         #expect(savedTopics.count == 2)
         #expect(savedMaterials.first?.topics.map(\.id) == [created.id])
+        #expect(savedMaterials.first?.status == .organized)
         #expect(savedTopics.first { $0.id == existing.id }?.materials.isEmpty == true)
         #expect(savedTopics.first { $0.id == created.id }?.materials.map(\.id) == [material.id])
         #expect(savedMaterials.first?.updatedAt == removedAt)

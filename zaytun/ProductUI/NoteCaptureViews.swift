@@ -162,7 +162,7 @@ struct TopicSelectionSection: View {
             Text("Topics (Optional)")
         } footer: {
             if !topics.isEmpty {
-                Text("Choose any intellectual threads this note contributes to.")
+                Text("Choose any intellectual threads this Material contributes to.")
             }
         }
     }

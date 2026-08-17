@@ -3,9 +3,11 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .reflections
     @State private var didBootstrap = false
     @State private var integrityMessage: String?
+    @State private var isIngestingSharedMedia = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -70,6 +72,12 @@ struct ContentView: View {
                     integrityMessage = error.localizedDescription
                 }
             }
+            ingestSharedMedia()
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                ingestSharedMedia()
+            }
         }
         .alert(
             "Data Integrity Problem",
@@ -81,6 +89,27 @@ struct ContentView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(integrityMessage ?? "")
+        }
+    }
+
+    private func ingestSharedMedia() {
+        guard !isIngestingSharedMedia else { return }
+        isIngestingSharedMedia = true
+        defer { isIngestingSharedMedia = false }
+
+        do {
+            let result = try SharedMediaIngestionService.ingestPending(
+                queue: try SharedImportQueue.appGroup(),
+                storage: try MediaStorageService.applicationSupport(),
+                in: modelContext
+            )
+            for failure in result.failures {
+                print("Shared media import \(failure.importID) failed: \(failure.message)")
+            }
+        } catch SharedImportQueueError.appGroupUnavailable {
+            // The app remains usable if the capability has not yet been registered for signing.
+        } catch {
+            print("Shared media queue ingestion failed: \(error.localizedDescription)")
         }
     }
 }

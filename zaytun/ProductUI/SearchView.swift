@@ -83,33 +83,39 @@ private struct SearchMaterialRow: View {
     let result: MaterialSearchResult
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(result.material.displayTitle)
-                .font(.headline)
-                .lineLimit(2)
-
-            if result.material.title?.trimmedNonempty != nil,
-               let text = result.material.text?.trimmedNonempty {
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+        HStack(alignment: .top, spacing: 10) {
+            if result.material.type != .note {
+                MaterialThumbnailView(material: result.material, size: 46)
             }
 
-            if let provenance = result.provenanceSummary {
-                Text(provenance)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(result.material.displayTitle)
+                    .font(.headline)
                     .lineLimit(2)
-            } else if let source = result.material.source?.trimmedNonempty {
-                Text(source)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if !result.material.topics.isEmpty {
-                Text(result.material.topics.map(\.title).sorted().joined(separator: " · "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+
+                if result.material.title?.trimmedNonempty != nil,
+                   let text = result.material.text?.trimmedNonempty {
+                    Text(text)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                if let provenance = result.provenanceSummary {
+                    Text(provenance)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                } else if let source = result.material.source?.trimmedNonempty {
+                    Text(source)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if !result.material.topics.isEmpty {
+                    Text(result.material.topics.map(\.title).sorted().joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(.vertical, 3)
