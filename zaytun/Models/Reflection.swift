@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+extension ZaytunSchemaV2 {
 @Model
 final class Reflection {
     @Attribute(.unique) var id: UUID
@@ -41,3 +42,6 @@ final class Reflection {
         }
     }
 }
+}
+
+typealias Reflection = ZaytunSchemaV2.Reflection

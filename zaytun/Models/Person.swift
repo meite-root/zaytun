@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+extension ZaytunSchemaV2 {
 @Model
 final class Person {
     @Attribute(.unique) var id: UUID
@@ -32,3 +33,6 @@ final class Person {
         isSelf ? String(localized: "Me") : (name?.trimmedNonempty ?? String(localized: "Unnamed Person"))
     }
 }
+}
+
+typealias Person = ZaytunSchemaV2.Person

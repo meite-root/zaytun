@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+extension ZaytunSchemaV2 {
 @Model
 final class Material {
     @Attribute(.unique) var id: UUID
@@ -8,6 +9,7 @@ final class Material {
     var statusRawValue: String
     var title: String?
     var text: String?
+    var extractedText: String?
     var mediaFilename: String?
     var contentTypeIdentifier: String?
     var createdAt: Date
@@ -34,6 +36,7 @@ final class Material {
         status: MaterialStatus = .inbox,
         title: String? = nil,
         text: String? = nil,
+        extractedText: String? = nil,
         mediaFilename: String? = nil,
         contentTypeIdentifier: String? = nil,
         createdAt: Date = .now,
@@ -53,6 +56,7 @@ final class Material {
         self.statusRawValue = status.rawValue
         self.title = title
         self.text = text
+        self.extractedText = extractedText
         self.mediaFilename = mediaFilename
         self.contentTypeIdentifier = contentTypeIdentifier
         self.createdAt = createdAt
@@ -108,6 +112,9 @@ final class Material {
         return values.isEmpty ? nil : values.joined(separator: " · ")
     }
 }
+}
+
+typealias Material = ZaytunSchemaV2.Material
 
 extension String {
     var trimmedNonempty: String? {

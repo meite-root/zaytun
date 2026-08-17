@@ -87,6 +87,7 @@ enum SearchService {
     private static func directlyMatches(_ material: Material, query: String) -> Bool {
         matches(material.title, query: query)
             || matches(material.text, query: query)
+            || matches(material.extractedText, query: query)
             || matches(material.source, query: query)
     }
 

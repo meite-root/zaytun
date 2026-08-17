@@ -101,7 +101,17 @@ struct ContentView: View {
             let result = try SharedMediaIngestionService.ingestPending(
                 queue: try SharedImportQueue.appGroup(),
                 storage: try MediaStorageService.applicationSupport(),
-                in: modelContext
+                in: modelContext,
+                onImported: { material in
+                    guard let storage = try? MediaStorageService.applicationSupport() else {
+                        return
+                    }
+                    MediaUnderstandingService.startAutomaticImageRecognition(
+                        for: material,
+                        storage: storage,
+                        in: modelContext
+                    )
+                }
             )
             for failure in result.failures {
                 print("Shared media import \(failure.importID) failed: \(failure.message)")

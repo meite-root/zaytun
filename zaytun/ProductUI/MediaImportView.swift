@@ -220,13 +220,18 @@ struct MediaImportView: View {
         do {
             let storage = try MediaStorageService.applicationSupport()
             let selectedTopics = topics.filter { selectedTopicIDs.contains($0.id) }
-            _ = try MediaImportService.importMedia(
+            let material = try MediaImportService.importMedia(
                 from: selection.temporaryURL,
                 contentType: selection.contentType,
                 originalFilename: selection.originalFilename,
                 title: title,
                 source: source,
                 topics: selectedTopics,
+                storage: storage,
+                in: modelContext
+            )
+            MediaUnderstandingService.startAutomaticImageRecognition(
+                for: material,
                 storage: storage,
                 in: modelContext
             )

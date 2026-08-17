@@ -159,7 +159,8 @@ enum SharedMediaIngestionService {
     static func ingestPending(
         queue: SharedImportQueue,
         storage: MediaStorageService,
-        in context: ModelContext
+        in context: ModelContext,
+        onImported: ((Material) -> Void)? = nil
     ) throws -> MediaQueueIngestionResult {
         let entries = try queue.entries()
         let existingMaterials = try context.fetch(FetchDescriptor<Material>())
@@ -182,7 +183,7 @@ enum SharedMediaIngestionService {
                         entry.manifest.contentTypeIdentifier
                     )
                 }
-                _ = try MediaImportService.importMedia(
+                let material = try MediaImportService.importMedia(
                     from: entry.payloadURL,
                     contentType: contentType,
                     originalFilename: entry.manifest.originalFilename,
@@ -195,6 +196,7 @@ enum SharedMediaIngestionService {
                 existingIDs.insert(importID)
                 try queue.remove(entry)
                 importedCount += 1
+                onImported?(material)
             } catch {
                 failures.append(MediaQueueIngestionFailure(
                     importID: importID,

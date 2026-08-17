@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+extension ZaytunSchemaV2 {
 @Model
 final class MaterialAttribution {
     @Attribute(.unique) var id: UUID
@@ -48,3 +49,6 @@ final class MaterialAttribution {
         set { roleRawValue = newValue.rawValue }
     }
 }
+}
+
+typealias MaterialAttribution = ZaytunSchemaV2.MaterialAttribution

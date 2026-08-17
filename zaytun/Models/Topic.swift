@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+extension ZaytunSchemaV2 {
 @Model
 final class Topic {
     @Attribute(.unique) var id: UUID
@@ -38,3 +39,6 @@ final class Topic {
         self.disciplines = disciplines
     }
 }
+}
+
+typealias Topic = ZaytunSchemaV2.Topic

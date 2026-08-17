@@ -35,6 +35,12 @@ struct MaterialDetailView: View {
                 }
             }
 
+            if material.type == .image
+                || material.type == .audio
+                || material.type == .video {
+                MaterialUnderstandingSection(material: material)
+            }
+
             if let source = material.source?.trimmedNonempty {
                 Section("Source") {
                     Text(source)
@@ -159,6 +165,125 @@ struct MaterialDetailView: View {
         } catch {
             modelContext.rollback()
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private enum MediaUnderstandingViewState: Equatable {
+    case idle
+    case processing
+    case success
+    case failed(String)
+}
+
+private struct MaterialUnderstandingSection: View {
+    @Environment(\.modelContext) private var modelContext
+
+    let material: Material
+
+    @State private var state: MediaUnderstandingViewState = .idle
+    @State private var processingTask: Task<Void, Never>?
+
+    private var extractedText: String? {
+        material.extractedText?.trimmedNonempty
+    }
+
+    private var heading: String {
+        material.type == .image ? "Recognized Text" : "Transcript"
+    }
+
+    private var emptyMessage: String {
+        material.type == .image ? "No text detected." : "No transcript yet."
+    }
+
+    private var actionTitle: String {
+        switch material.type {
+        case .image:
+            extractedText == nil ? "Recognize Text" : "Recognize Text Again"
+        case .audio, .video:
+            extractedText == nil ? "Transcribe" : "Transcribe Again"
+        case .note, .none:
+            "Unavailable"
+        }
+    }
+
+    var body: some View {
+        Section(heading) {
+            if let extractedText {
+                Text(extractedText)
+                    .textSelection(.enabled)
+            } else {
+                Text(emptyMessage)
+                    .foregroundStyle(.secondary)
+            }
+
+            switch state {
+            case .processing:
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(material.type == .image ? "Recognizing text…" : "Transcribing…")
+                        .foregroundStyle(.secondary)
+                }
+                Button("Cancel", role: .cancel) {
+                    processingTask?.cancel()
+                }
+            case let .failed(message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                actionButton
+            case .idle, .success:
+                actionButton
+            }
+        }
+        .onDisappear {
+            processingTask?.cancel()
+            processingTask = nil
+        }
+    }
+
+    private var actionButton: some View {
+        Button(actionTitle, systemImage: material.type == .image ? "text.viewfinder" : "waveform") {
+            startProcessing()
+        }
+        .disabled(state == .processing)
+    }
+
+    private func startProcessing() {
+        guard state != .processing else { return }
+        processingTask?.cancel()
+        state = .processing
+        processingTask = Task { @MainActor in
+            do {
+                if material.type == .audio || material.type == .video {
+                    switch await MediaUnderstandingService.requestSpeechAuthorization() {
+                    case .authorized:
+                        break
+                    case .denied:
+                        throw MediaUnderstandingError.speechPermissionDenied
+                    case .restricted:
+                        throw MediaUnderstandingError.speechPermissionRestricted
+                    case .unavailable:
+                        throw MediaUnderstandingError.transcriptionUnavailable
+                    }
+                }
+
+                _ = try await MediaUnderstandingService.process(
+                    material,
+                    storage: try MediaStorageService.applicationSupport(),
+                    in: modelContext
+                )
+                state = .success
+            } catch is CancellationError {
+                state = .idle
+            } catch {
+                state = .failed(
+                    (error as? LocalizedError)?.errorDescription
+                        ?? (material.type == .image
+                            ? "Text recognition failed. Try again."
+                            : "Transcription is unavailable. Try again later.")
+                )
+            }
         }
     }
 }

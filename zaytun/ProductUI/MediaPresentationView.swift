@@ -4,6 +4,17 @@ import Combine
 import SwiftUI
 import UIKit
 
+@MainActor
+private enum MediaPlaybackAudioSession {
+    static let failureMessage = "Audio playback could not start. Check the device volume and audio output, then try again."
+
+    static func activate() throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playback, mode: .default)
+        try session.setActive(true)
+    }
+}
+
 struct MediaContentView: View {
     let material: Material
     var imageMaximumHeight: CGFloat? = nil
@@ -72,6 +83,7 @@ private final class AudioPlayerModel: NSObject, ObservableObject, AVAudioPlayerD
     @Published var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var loadError: String?
+    @Published private(set) var playbackError: String?
 
     private var player: AVAudioPlayer?
 
@@ -80,6 +92,7 @@ private final class AudioPlayerModel: NSObject, ObservableObject, AVAudioPlayerD
         do {
             let player = try AVAudioPlayer(contentsOf: url)
             player.delegate = self
+            player.volume = 1
             player.prepareToPlay()
             self.player = player
             duration = player.duration
@@ -93,7 +106,17 @@ private final class AudioPlayerModel: NSObject, ObservableObject, AVAudioPlayerD
         if player.isPlaying {
             player.pause()
         } else {
-            player.play()
+            do {
+                try MediaPlaybackAudioSession.activate()
+                guard player.play() else {
+                    playbackError = MediaPlaybackAudioSession.failureMessage
+                    refresh()
+                    return
+                }
+                playbackError = nil
+            } catch {
+                playbackError = MediaPlaybackAudioSession.failureMessage
+            }
         }
         refresh()
     }
@@ -147,6 +170,12 @@ private struct NativeAudioPlayerView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
+                if let playbackError = model.playbackError {
+                    Label(playbackError, systemImage: "speaker.slash")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
                 Slider(
                     value: Binding(
                         get: { model.currentTime },
@@ -178,15 +207,41 @@ private struct NativeAudioPlayerView: View {
 
 private struct NativeVideoPlayerView: View {
     @State private var player: AVPlayer
+    @State private var playbackError: String?
 
     init(url: URL) {
-        _player = State(initialValue: AVPlayer(url: url))
+        let player = AVPlayer(url: url)
+        player.isMuted = false
+        player.volume = 1
+        _player = State(initialValue: player)
     }
 
     var body: some View {
         VideoPlayer(player: player)
             .accessibilityLabel("Video Material")
+            .overlay(alignment: .bottom) {
+                if let playbackError {
+                    Label(playbackError, systemImage: "speaker.slash")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .padding(8)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        .padding(8)
+                }
+            }
+            .onAppear(perform: prepareForPlayback)
             .onDisappear { player.pause() }
+    }
+
+    private func prepareForPlayback() {
+        do {
+            try MediaPlaybackAudioSession.activate()
+            player.isMuted = false
+            player.volume = 1
+            playbackError = nil
+        } catch {
+            playbackError = MediaPlaybackAudioSession.failureMessage
+        }
     }
 }
 
